@@ -3,11 +3,12 @@ import { Log } from "../util/log"
 import path from "path"
 import { z } from "zod"
 import { data } from "./models-macro" with { type: "macro" }
-import { Installation } from "../installation"
 
 export namespace ModelsDev {
   const log = Log.create({ service: "models.dev" })
   const filepath = path.join(Global.Path.cache, "models.json")
+  // Use local model-api.json file in project root
+  const localModelApiPath = path.join(process.cwd(), "model-api.json")
 
   export const Model = z
     .object({
@@ -51,30 +52,50 @@ export namespace ModelsDev {
   export type Provider = z.infer<typeof Provider>
 
   export async function get() {
-    refresh()
+    // Try to read from local model-api.json first
+    const localFile = Bun.file(localModelApiPath)
+    const localResult = await localFile.json().catch(() => {})
+    if (localResult) {
+      log.info("Using local model-api.json", {
+        file: localModelApiPath,
+      })
+      return localResult as Record<string, Provider>
+    }
+
+    // Fallback to cache file
     const file = Bun.file(filepath)
     const result = await file.json().catch(() => {})
     if (result) return result as Record<string, Provider>
+    
+    // Last fallback to macro (which will also read local file)
     const json = await data()
     return JSON.parse(json) as Record<string, Provider>
   }
 
   export async function refresh() {
-    const file = Bun.file(filepath)
-    log.info("refreshing", {
-      file,
+    // Read from local model-api.json and update cache
+    const localFile = Bun.file(localModelApiPath)
+    const cacheFile = Bun.file(filepath)
+    
+    log.info("refreshing from local model-api.json", {
+      localFile: localModelApiPath,
+      cacheFile: filepath,
     })
-    const result = await fetch("https://models.dev/api.json", {
-      headers: {
-        "User-Agent": Installation.USER_AGENT,
-      },
-    }).catch((e) => {
-      log.error("Failed to fetch models.dev", {
+    
+    const localResult = await localFile.json().catch((e) => {
+      log.error("Failed to read local model-api.json", {
         error: e,
+        file: localModelApiPath,
       })
+      return null
     })
-    if (result && result.ok) await Bun.write(file, await result.text())
+    
+    if (localResult) {
+      await Bun.write(cacheFile, JSON.stringify(localResult, null, 2))
+      log.info("Successfully updated cache from local model-api.json")
+    }
   }
 }
 
-setInterval(() => ModelsDev.refresh(), 60 * 1000 * 60).unref()
+// Remove the automatic refresh interval since we're using local file
+// setInterval(() => ModelsDev.refresh(), 60 * 1000 * 60).unref()
