@@ -1,6 +1,7 @@
 给你一套稳妥的步骤（把本地 `dev` 跟上游同步，再让功能分支跟上 `dev`，最后推到你自己的 fork）：
 
 ---
+git remote add upstream https://github.com/sst/opencode.git
 
 ## 1) 同步远程引用
 
