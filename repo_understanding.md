@@ -1,10 +1,15 @@
-# Setup
+# DevEnv Setup
 安装bun
 curl -fsSL https://bun.sh/install | bash
 exec $SHELL -l
-
+bun install
 
 安装go 官网下载
+sudo rm -rf /usr/local/g
+sudo tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
+
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
 
 bun dev运行项目
 ## 🎯 项目整体架构分析
