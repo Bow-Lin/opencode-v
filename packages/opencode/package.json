@@ -48,6 +48,7 @@
     "remeda": "catalog:",
     "tree-sitter": "0.22.4",
     "tree-sitter-bash": "0.23.3",
+    "tree-sitter-python": "0.23.6",
     "turndown": "7.2.0",
     "ulid": "3.0.1",
     "vscode-jsonrpc": "8.2.1",

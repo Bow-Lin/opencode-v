@@ -53,6 +53,9 @@ git merge dev
 git push origin feature/verilog-agent
 ```
 
+## 4）远端分支有更新同步到本地
+origin feature/verilog-agent
+Pull,Push -> Pull from -> origin -> feature/verilog-agent
 ---
 
 ## 小贴士
@@ -74,4 +77,3 @@ git push origin feature/verilog-agent
   * **`origin/dev` / `upstream/dev`** 才是远程分支；
   * rebase/merge 要对齐到“分支”，不是“远程”。
 
-如果你想，我可以根据你当前分支列表和追踪关系，给你生成一条**最短命令序列**（比如你更偏好 merge 还是 rebase）。
