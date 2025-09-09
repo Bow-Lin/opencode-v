@@ -1,0 +1,5 @@
+- Indexes Python projects using tree-sitter for static analysis
+- Scans project directories and extracts module/class/function definitions
+- Parses import relationships and function calls between modules
+- Generates structured metadata about Python code entities
+- Use this tool when you need to understand the structure of a Python codebase

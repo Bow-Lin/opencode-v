@@ -90,6 +90,17 @@ $ bun dev
 
 **API Client**: After making changes to the TypeScript API endpoints in `packages/opencode/src/server/server.ts`, you will need the opencode team to generate a new stainless sdk for the clients.
 
+**run specific test**
+e.g.
+```bash
+$ bun run project-index.test.ts
+```
+**before commit**:
+run
+```bash
+$ bun run --filter='*' typecheck
+```
+
 ### FAQ
 
 #### How is this different than Claude Code?
