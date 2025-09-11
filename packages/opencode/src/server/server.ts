@@ -1247,6 +1247,64 @@ export namespace Server {
         async (c) => c.json(await callTui(c)),
       )
       .route("/tui/control", TuiRoute)
+      .post(
+        "/project-index",
+        describeRoute({
+          description: "Index the project and store results in SQLite",
+          operationId: "project.index",
+          responses: {
+            200: {
+              description: "Project indexed successfully",
+              content: {
+                "application/json": {
+                  schema: resolver(z.object({
+                    success: z.boolean(),
+                    message: z.string(),
+                  })),
+                },
+              },
+            },
+            ...ERRORS,
+          },
+        }),
+        zValidator(
+          "json",
+          z.object({
+            path: z.string().optional(),
+          }),
+        ),
+        async (c) => {
+          try {
+            const { path = "." } = c.req.valid("json");
+            
+            // Initialize the project-index tool
+            const projectIndexTool = await import("../tool/project-index");
+            const toolInit = await projectIndexTool.ProjectIndexTool.init();
+            
+            // Create a mock context
+            const mockContext: any = {
+              sessionID: "local",
+              messageID: "local",
+              agent: "local",
+              abort: new AbortController().signal,
+              metadata: () => {}
+            };
+            
+            // Execute the tool
+            const result = await toolInit.execute({ path, timeout: 10000 }, mockContext);
+            
+            // TODO: Store result in SQLite database
+            // For now, we'll just return the result metadata
+            return c.json({
+              success: true,
+              message: "Project indexed successfully",
+              data: result.metadata,
+            });
+          } catch (error) {
+            throw new NamedError.Unknown({ message: "Failed to index project: " + error });
+          }
+        },
+      )
       .put(
         "/auth/:id",
         describeRoute({

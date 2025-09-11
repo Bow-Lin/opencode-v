@@ -1414,6 +1414,8 @@ func (a Model) executeCommand(command commands.Command) (tea.Model, tea.Cmd) {
 		a.modal = themeDialog
 	case commands.ProjectInitCommand:
 		cmds = append(cmds, a.app.InitializeProject(context.Background()))
+	case commands.ProjectIndexCommand:
+		cmds = append(cmds, a.app.IndexProject(context.Background()))
 	case commands.InputClearCommand:
 		if a.editor.Value() == "" {
 			return a, nil

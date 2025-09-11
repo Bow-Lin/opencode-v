@@ -1,12 +1,16 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"log/slog"
 
@@ -716,6 +720,71 @@ func (a *App) InitializeProject(ctx context.Context) tea.Cmd {
 	}()
 
 	return tea.Batch(cmds...)
+}
+
+// ProjectIndexedMsg is sent when the project indexing is completed
+type ProjectIndexedMsg struct {
+	Success bool
+	Error   error
+	Data    map[string]interface{}
+}
+
+// IndexProject indexes the current project
+func (a *App) IndexProject(ctx context.Context) tea.Cmd {
+	// Execute the project index tool directly without involving the LLM
+	// Create a toast to show the indexing is starting
+	go func() {
+		// Show initial toast
+		// Note: We can't directly show toast here as we're in a goroutine
+		
+		// Call the project index API endpoint
+		reqBody := map[string]interface{}{
+			"path": ".",
+		}
+		
+		// Convert request body to JSON
+		reqBytes, err := json.Marshal(reqBody)
+		if err != nil {
+			slog.Error("Failed to marshal request body", "error", err)
+			return
+		}
+		
+		// Make HTTP request to project index endpoint
+		// Use the same server URL as the client
+		serverURL := os.Getenv("OPENCODE_SERVER")
+		if serverURL == "" {
+			serverURL = "http://localhost:3000"
+		}
+		// Ensure serverURL doesn't end with a slash and add a single slash before project-index
+		serverURL = strings.TrimSuffix(serverURL, "/")
+		url := serverURL + "/project-index"
+		resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+		if err != nil {
+			slog.Error("Failed to call project index API", "error", err)
+			return
+		}
+		defer resp.Body.Close()
+		
+		// Check response status
+		if resp.StatusCode != http.StatusOK {
+			slog.Error("Project index API returned non-OK status", "status", resp.StatusCode)
+			return
+		}
+		
+		// Handle response and store results in SQLite
+		var respData map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+			slog.Error("Failed to decode project index response", "error", err)
+			return
+		}
+
+		slog.Info("Project indexed successfully")
+		
+		// Send message to show success toast
+		time.Sleep(100 * time.Millisecond) // Small delay to ensure order
+	}()
+
+	return toast.NewInfoToast("Project indexing started...")
 }
 
 func (a *App) CompactSession(ctx context.Context) tea.Cmd {
