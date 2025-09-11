@@ -143,6 +143,7 @@ const (
 	FileSearchCommand               CommandName = "file_search"
 	FileDiffToggleCommand           CommandName = "file_diff_toggle"
 	ProjectInitCommand              CommandName = "project_init"
+	ProjectIndexCommand             CommandName = "project_index"
 	InputClearCommand               CommandName = "input_clear"
 	InputPasteCommand               CommandName = "input_paste"
 	InputSubmitCommand              CommandName = "input_submit"
@@ -315,6 +316,11 @@ func LoadFromConfig(config *opencode.Config, customCommands []opencode.Command) 
 			Description: "create/update AGENTS.md",
 			Keybindings: parseBindings("<leader>i"),
 			Trigger:     []string{"init"},
+		},
+		{
+			Name:        "project_index",
+			Description: "index the current project and store in sqlite",
+			Trigger:     []string{"index"},
 		},
 		{
 			Name:        InputClearCommand,
