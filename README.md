@@ -95,6 +95,11 @@ e.g.
 ```bash
 $ bun run project-index.test.ts
 ```
+
+
+dev log
+`~/.local/share/opencode/log/dev.log`
+
 **before commit**:
 run
 ```bash

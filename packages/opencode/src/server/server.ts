@@ -1276,10 +1276,14 @@ export namespace Server {
         async (c) => {
           try {
             const { path = "." } = c.req.valid("json");
+            log.info("Project indexing started", { path });
             
             // Initialize the project-index tool
+            log.info("Importing project-index tool");
             const projectIndexTool = await import("../tool/project-index");
+            log.info("Initializing project-index tool");
             const toolInit = await projectIndexTool.ProjectIndexTool.init();
+            log.info("Project-index tool initialized successfully");
             
             // Create a mock context
             const mockContext: any = {
@@ -1291,16 +1295,23 @@ export namespace Server {
             };
             
             // Execute the tool
+            log.info("Executing project-index tool");
             const result = await toolInit.execute({ path, timeout: 10000 }, mockContext);
+            log.info("Project-index tool executed successfully", { 
+              symbolsCount: result.metadata.symbols?.length || 0,
+              relationshipsCount: result.metadata.relationships?.length || 0,
+              filesCount: result.metadata.files?.length || 0
+            });
             
-            // TODO: Store result in SQLite database
-            // For now, we'll just return the result metadata
+            // Return only a simple success message without the full metadata
+            const message = `Project indexed successfully. Indexed ${result.metadata.symbols?.length || 0} symbols and ${result.metadata.relationships?.length || 0} relationships.`;
+            log.info("Project indexing completed", { message });
             return c.json({
               success: true,
-              message: "Project indexed successfully",
-              data: result.metadata,
+              message,
             });
           } catch (error) {
+            log.error("Failed to index project", { error });
             throw new NamedError.Unknown({ message: "Failed to index project: " + error });
           }
         },

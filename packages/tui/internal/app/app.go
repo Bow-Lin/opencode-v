@@ -736,19 +736,20 @@ func (a *App) IndexProject(ctx context.Context) tea.Cmd {
 	go func() {
 		// Show initial toast
 		// Note: We can't directly show toast here as we're in a goroutine
-		
+
 		// Call the project index API endpoint
+		fmt.Println("Indexing project...")
 		reqBody := map[string]interface{}{
 			"path": ".",
 		}
-		
+
 		// Convert request body to JSON
 		reqBytes, err := json.Marshal(reqBody)
 		if err != nil {
 			slog.Error("Failed to marshal request body", "error", err)
 			return
 		}
-		
+
 		// Make HTTP request to project index endpoint
 		// Use the same server URL as the client
 		serverURL := os.Getenv("OPENCODE_SERVER")
@@ -758,30 +759,38 @@ func (a *App) IndexProject(ctx context.Context) tea.Cmd {
 		// Ensure serverURL doesn't end with a slash and add a single slash before project-index
 		serverURL = strings.TrimSuffix(serverURL, "/")
 		url := serverURL + "/project-index"
+		slog.Info("Project index API called", "url", url, "request_body", string(reqBytes))
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
 		if err != nil {
 			slog.Error("Failed to call project index API", "error", err)
 			return
 		}
 		defer resp.Body.Close()
-		
+		slog.Info("Project index API response", "status", resp.StatusCode)
+
 		// Check response status
 		if resp.StatusCode != http.StatusOK {
 			slog.Error("Project index API returned non-OK status", "status", resp.StatusCode)
 			return
 		}
-		
-		// Handle response and store results in SQLite
+
+		// Handle response
 		var respData map[string]interface{}
 		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
 			slog.Error("Failed to decode project index response", "error", err)
+			// Send error message to show error toast
+			time.Sleep(100 * time.Millisecond) // Small delay to ensure order
 			return
 		}
+		slog.Info("Project index API response decoded", "response", respData)
 
-		slog.Info("Project indexed successfully")
-		
-		// Send message to show success toast
-		time.Sleep(100 * time.Millisecond) // Small delay to ensure order
+		// Log success but don't display detailed data
+		if message, ok := respData["message"].(string); ok {
+			slog.Info("Project indexed", "message", message)
+			fmt.Println("Project indexed")
+		} else {
+			slog.Info("Project indexed successfully")
+		}
 	}()
 
 	return toast.NewInfoToast("Project indexing started...")

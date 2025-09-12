@@ -9,6 +9,9 @@
     ],
     "customConditions": [
       "development"
+    ],
+    "types": [
+      "bun-types"
     ]
   }
 }

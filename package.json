@@ -28,9 +28,11 @@
     }
   },
   "dependencies": {
+    "drizzle-orm": "0.44.5",
     "pulumi-stripe": "0.0.24"
   },
   "devDependencies": {
+    "drizzle-kit": "0.31.4",
     "prettier": "3.5.3",
     "sst": "3.17.8"
   },

@@ -4,9 +4,12 @@
     "": {
       "name": "opencode",
       "dependencies": {
+        "better-sqlite3": "12.2.0",
+        "drizzle-orm": "0.41.0",
         "pulumi-stripe": "0.0.24",
       },
       "devDependencies": {
+        "@types/better-sqlite3": "7.6.13",
         "prettier": "3.5.3",
         "sst": "3.17.8",
       },
@@ -135,6 +138,7 @@
         "@octokit/webhooks-types": "7.6.1",
         "@standard-schema/spec": "1.0.0",
         "@tsconfig/bun": "1.0.7",
+        "@types/better-sqlite3": "^7.6.12",
         "@types/bun": "latest",
         "@types/turndown": "5.0.5",
         "@types/yargs": "17.0.33",
@@ -1032,6 +1036,8 @@
 
     "@types/babel__traverse": ["@types/babel__traverse@7.20.7", "", { "dependencies": { "@babel/types": "^7.20.7" } }, "sha512-dkO5fhS7+/oos4ciWxyEyjWe48zmG6wbCheo/G2ZnHx4fs3EU6YC6UM8rk56gAjNJ9P3MTH2jo5jb92/K6wbng=="],
 
+    "@types/better-sqlite3": ["@types/better-sqlite3@7.6.13", "https://registry.npmmirror.com/@types/better-sqlite3/-/better-sqlite3-7.6.13.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-NMv9ASNARoKksWtsq/SHakpYAYnhBrQgGD8zkLYk/jaK8jUGn08CfEdTRgYhMypUQAfzSP8W6gNLe0q19/t4VA=="],
+
     "@types/braces": ["@types/braces@3.0.5", "", {}, "sha512-SQFof9H+LXeWNz8wDe7oN5zu7ket0qwMu5vZubW4GCJ8Kkeh6nBWUz87+KTz/G3Kqsrp0j/W253XJb3KMEeg3w=="],
 
     "@types/bun": ["@types/bun@1.2.21", "", { "dependencies": { "bun-types": "1.2.21" } }, "sha512-NiDnvEqmbfQ6dmZ3EeUO577s4P5bf4HCTXtI6trMc6f6RzirY5IrF3aIookuSpyslFzrnvv2lmEWv5HyC1X79A=="],
@@ -1253,6 +1259,8 @@
     "bcp-47-match": ["bcp-47-match@2.0.3", "", {}, "sha512-JtTezzbAibu8G0R9op9zb3vcWZd9JF6M0xOYGPn0fNCd7wOpRB1mU2mH9T8gaBGbAAyIIVgB2G7xG0GP98zMAQ=="],
 
     "before-after-hook": ["before-after-hook@4.0.0", "", {}, "sha512-q6tR3RPqIB1pMiTRMFcZwuG5T8vwp+vUvEG0vuI6B+Rikh5BfPp2fQ82c925FOs+b0lcFQ8CFrL+KbilfZFhOQ=="],
+
+    "better-sqlite3": ["better-sqlite3@12.2.0", "", { "dependencies": { "bindings": "^1.5.0", "prebuild-install": "^7.1.1" } }, "sha512-eGbYq2CT+tos1fBwLQ/tkBt9J5M3JEHjku4hbvQUePCckkvVf14xWj+1m7dGoK81M/fOjFT7yM9UMeKT/+vFLQ=="],
 
     "bin-links": ["bin-links@4.0.4", "", { "dependencies": { "cmd-shim": "^6.0.0", "npm-normalize-package-bin": "^3.0.0", "read-cmd-shim": "^4.0.0", "write-file-atomic": "^5.0.0" } }, "sha512-cMtq4W5ZsEwcutJrVId+a/tjt8GSbS+h0oNkdl6+6rBuEv8Ot33Bevj5KPm40t309zuhVic8NjpuL42QCiJWWA=="],
 

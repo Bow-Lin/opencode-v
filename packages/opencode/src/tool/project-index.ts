@@ -7,6 +7,9 @@ import { App } from "../app/app"
 import { Filesystem } from "../util/filesystem"
 import { lazy } from "../util/lazy"
 import { Ripgrep } from "../file/ripgrep"
+import { db } from "../util/db/db"
+import { symbolsTable, relationshipsTable } from "../util/db/schema"
+import { enableDebugLogging, debugLog, errorLog } from "../util/debug"
 
 // Define types for our parsed entities
 interface FileMetadata {
@@ -81,21 +84,31 @@ export const ProjectIndexTool = Tool.define("project-index", {
     timeout: z.number().describe("Optional timeout in milliseconds").optional(),
   }),
   async execute(params, _ctx) {
+    // Enable debug logging for project indexing
+    enableDebugLogging(true)
+    debugLog("Starting project indexing", { path: params.path })
+    
     const app = App.info()
     const projectPath = path.isAbsolute(params.path) ? params.path : path.resolve(app.path.cwd, params.path)
+    debugLog("Resolved project path", { projectPath })
     
     // Verify the path is within the allowed directory
     if (!Filesystem.contains(app.path.cwd, projectPath)) {
-      throw new Error(`Path ${projectPath} is not in the current working directory`)
+      const error = new Error(`Path ${projectPath} is not in the current working directory`)
+      errorLog("Path verification failed", error)
+      throw error
     }
 
     // Step 1: Scan and filter Python files
+    debugLog("Scanning Python files")
     const files = await scanPythonFiles(projectPath)
+    debugLog("Python files scan completed", { fileCount: files.length })
     
     // Step 2: Parse each Python file and extract entities
     const symbols: SymbolInfo[] = []
     const relationships: Relationship[] = []
     
+    debugLog("Parsing Python files", { fileCount: files.length })
     for (const file of files) {
       try {
         const fileContent = await fs.readFile(file.path, 'utf-8')
@@ -103,10 +116,11 @@ export const ProjectIndexTool = Tool.define("project-index", {
         symbols.push(...fileSymbols.symbols)
         relationships.push(...fileSymbols.relationships)
       } catch (error) {
-        // Log error but continue with other files
-        console.error(`Failed to parse ${file.path}:`, error)
+        // Silently skip files that can't be parsed
+        debugLog("Failed to parse file", { filePath: file.path, error: error instanceof Error ? error.message : String(error) })
       }
     }
+    debugLog("All files parsed", { totalSymbols: symbols.length, totalRelationships: relationships.length })
     
     const result: ProjectIndexResult = {
       files,
@@ -114,6 +128,84 @@ export const ProjectIndexTool = Tool.define("project-index", {
       relationships
     }
 
+    // Store results in SQLite database
+    try {
+      debugLog("Storing results in SQLite database")
+      // Ensure database tables exist
+      debugLog("Database tables ensured")
+      
+      // Clear existing data for this project
+      await db.delete(relationshipsTable);
+      debugLog("Cleared existing relationships")
+      await db.delete(symbolsTable);
+      debugLog("Cleared existing symbols")
+      
+      // Insert symbols
+      if (result.symbols.length > 0) {
+        debugLog("Inserting symbols", { count: result.symbols.length })
+        // Chunk the symbols into batches to avoid SQLite limits
+        const batchSize = 100;
+        for (let i = 0; i < result.symbols.length; i += batchSize) {
+          const batch = result.symbols.slice(i, i + batchSize);
+          await db.insert(symbolsTable).values(
+            batch.map(symbol => ({
+              name: symbol.name,
+              symbol_fqn: symbol.symbol_fqn,
+              module_fqn: symbol.module_fqn,
+              type: symbol.type,
+              visibility: symbol.visibility,
+              isAsync: false, // Keep as boolean, Drizzle will handle conversion
+              docstring: symbol.docstring,
+              docstring_summary: symbol.docstring_summary,
+              location_path: symbol.location.path,
+              location_line_start: symbol.location.line_start,
+              location_line_end: symbol.location.line_end,
+              signature_parameters: symbol.signature ? JSON.stringify(symbol.signature.parameters) : null,
+              signature_returnType: symbol.signature?.returnType ?? null,
+              signature_decorators: symbol.signature ? JSON.stringify(symbol.signature.decorators) : null,
+            }))
+          ).onConflictDoNothing();
+        }
+        debugLog("Symbols inserted successfully")
+      } else {
+        debugLog("No symbols to insert")
+      }
+      
+      // Insert relationships
+      if (result.relationships.length > 0) {
+        debugLog("Inserting relationships", { count: result.relationships.length })
+        // Chunk the relationships into batches to avoid SQLite limits
+        const batchSize = 100;
+        for (let i = 0; i < result.relationships.length; i += batchSize) {
+          const batch = result.relationships.slice(i, i + batchSize);
+          await db.insert(relationshipsTable).values(
+            batch.map(relationship => ({
+              type: relationship.type,
+              source: relationship.source,
+              target: relationship.target,
+            }))
+          ).onConflictDoNothing();
+        }
+        debugLog("Relationships inserted successfully")
+      } else {
+        debugLog("No relationships to insert")
+      }
+      
+      debugLog("Stored results in database", { 
+        symbolsCount: result.symbols.length, 
+        relationshipsCount: result.relationships.length 
+      });
+    } catch (error) {
+      errorLog("Failed to store results in database", error)
+      // Continue with the operation even if database storage fails
+    }
+
+    debugLog("Project indexing completed", { 
+      files: result.files.length,
+      symbols: result.symbols.length,
+      relationships: result.relationships.length
+    })
+    
     return {
       title: `Project Index: ${params.path}`,
       metadata: result,
@@ -123,11 +215,13 @@ export const ProjectIndexTool = Tool.define("project-index", {
 })
 
 async function scanPythonFiles(projectPath: string): Promise<FileMetadata[]> {
+  debugLog("Scanning Python files in project path", { projectPath })
   // Use Ripgrep to find all Python files
   const pythonFiles = await Ripgrep.files({
     cwd: projectPath,
     glob: ["**/*.py"],
   })
+  debugLog("Found Python files from Ripgrep", { count: pythonFiles.length })
   
   const files: FileMetadata[] = []
   
@@ -137,10 +231,12 @@ async function scanPythonFiles(projectPath: string): Promise<FileMetadata[]> {
         relativePath.includes('.pytest_cache') || 
         relativePath.includes('.venv') || 
         relativePath.includes('node_modules')) {
+      debugLog("Skipping file (special directory)", { relativePath })
       continue
     }
     
     const fullPath = path.join(projectPath, relativePath)
+    debugLog("Processing file", { fullPath })
     
     try {
       // Get file stats
@@ -148,6 +244,7 @@ async function scanPythonFiles(projectPath: string): Promise<FileMetadata[]> {
       
       // Skip very large files (>1MB)
       if (stat.size > 1024 * 1024) {
+        debugLog("Skipping file (too large)", { fullPath, size: stat.size })
         continue
       }
       
@@ -161,12 +258,14 @@ async function scanPythonFiles(projectPath: string): Promise<FileMetadata[]> {
         lineCount,
         size: stat.size,
       })
+      debugLog("Added file", { fullPath, lineCount, size: stat.size })
     } catch (error) {
       // Skip files that can't be read
-      console.error(`Failed to read file ${fullPath}:`, error)
+      debugLog("Failed to read file", { fullPath, error: error instanceof Error ? error.message : String(error) })
     }
   }
   
+  debugLog("Total files processed", { count: files.length })
   return files
 }
 
