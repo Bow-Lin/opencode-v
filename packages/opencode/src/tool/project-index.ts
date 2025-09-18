@@ -7,7 +7,7 @@ import { App } from "../app/app"
 import { Filesystem } from "../util/filesystem"
 import { lazy } from "../util/lazy"
 import { Ripgrep } from "../file/ripgrep"
-import { db } from "../util/db/db"
+import { createDbConnection } from "../util/db/db"
 import { symbolsTable, relationshipsTable } from "../util/db/schema"
 import { enableDebugLogging, debugLog, errorLog } from "../util/debug"
 
@@ -129,10 +129,13 @@ export const ProjectIndexTool = Tool.define("project-index", {
     }
 
     // Store results in SQLite database
+    let dbConnection: ReturnType<typeof createDbConnection> | null = null;
     try {
       debugLog("Storing results in SQLite database")
-      // Ensure database tables exist
-      debugLog("Database tables ensured")
+      // Create database connection
+      dbConnection = createDbConnection();
+      const { db, sqlite } = dbConnection;
+      debugLog("Database connection created")
       
       // Clear existing data for this project
       await db.delete(relationshipsTable);
@@ -195,7 +198,16 @@ export const ProjectIndexTool = Tool.define("project-index", {
         symbolsCount: result.symbols.length, 
         relationshipsCount: result.relationships.length 
       });
+      
+      // Close database connection
+      sqlite.close();
+      debugLog("Database connection closed")
     } catch (error) {
+      // Close database connection if it was opened
+      if (dbConnection) {
+        dbConnection.sqlite.close();
+        debugLog("Database connection closed after error")
+      }
       errorLog("Failed to store results in database", error)
       // Continue with the operation even if database storage fails
     }
