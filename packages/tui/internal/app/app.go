@@ -738,7 +738,6 @@ func (a *App) IndexProject(ctx context.Context) tea.Cmd {
 		// Note: We can't directly show toast here as we're in a goroutine
 
 		// Call the project index API endpoint
-		fmt.Println("Indexing project...")
 		reqBody := map[string]interface{}{
 			"path": ".",
 		}
@@ -787,13 +786,12 @@ func (a *App) IndexProject(ctx context.Context) tea.Cmd {
 		// Log success but don't display detailed data
 		if message, ok := respData["message"].(string); ok {
 			slog.Info("Project indexed", "message", message)
-			fmt.Println("Project indexed")
 		} else {
 			slog.Info("Project indexed successfully")
 		}
 	}()
 
-	return toast.NewInfoToast("Project indexing started...")
+	return toast.NewInfoToast("Project indexed successfully")
 }
 
 func (a *App) CompactSession(ctx context.Context) tea.Cmd {
