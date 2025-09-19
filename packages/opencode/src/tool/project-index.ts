@@ -298,6 +298,9 @@ async function parsePythonFile(content: string, relativePath: string): Promise<{
     // Walk the tree to find all relevant nodes
     const visitedNodes = new Set<string>()
     
+    // Track the current function context for call relationships
+    let currentFunctionContext: string | null = null;
+    
     function walk(node: any) {
       // Get node ID if available, otherwise use a string representation
       const nodeId = node.id !== undefined ? node.id : `${node.type}-${node.startIndex}-${node.endIndex}`;
@@ -310,11 +313,40 @@ async function parsePythonFile(content: string, relativePath: string): Promise<{
           processClass(node, module_fqn, relativePath, content, symbols, relationships)
           break
         case 'function_definition':
-          processFunction(node, module_fqn, relativePath, content, symbols, relationships)
+          // Get function name
+          const nameNode = node.childForFieldName('name');
+          if (nameNode) {
+            const functionName = nameNode.text;
+            const functionFQN = `${module_fqn}.${functionName}`;
+            
+            // Save previous context and set new context
+            const previousContext = currentFunctionContext;
+            currentFunctionContext = functionFQN;
+            
+            // Process the function
+            processFunction(node, module_fqn, relativePath, content, symbols, relationships);
+            
+            // Recursively walk children with new context
+            if (node.childCount > 0) {
+              for (let i = 0; i < node.childCount; i++) {
+                const child = node.child(i);
+                if (child) {
+                  walk(child);
+                }
+              }
+            }
+            
+            // Restore previous context
+            currentFunctionContext = previousContext;
+            return;
+          }
           break
         case 'import_statement':
         case 'import_from_statement':
           processImport(node, module_fqn, relationships)
+          break
+        case 'call':
+          processCallExpression(node, module_fqn, relationships, currentFunctionContext)
           break
       }
       
@@ -527,5 +559,50 @@ function processImport(node: any, module_fqn: string, relationships: Relationshi
   } catch (error) {
     // Silently ignore errors in processing individual nodes
     console.debug(`Error processing import node: ${error}`)
+  }
+}
+
+function processCallExpression(node: any, module_fqn: string, relationships: Relationship[], currentFunctionContext: string | null = null) {
+  try {
+    // Get the function being called
+    const functionNode = node.childForFieldName('function');
+    if (!functionNode) return;
+    
+    // Extract the function name
+    let functionName = '';
+    if (functionNode.type === 'identifier') {
+      // Simple function call like foo()
+      functionName = functionNode.text;
+    } else if (functionNode.type === 'attribute') {
+      // Method call like obj.method()
+      const attrNode = functionNode.childForFieldName('attribute');
+      if (attrNode && attrNode.type === 'identifier') {
+        functionName = attrNode.text;
+      }
+      
+      // Handle cases like super().__init__ where we want to capture the method name
+      const objectNode = functionNode.childForFieldName('object');
+      if (objectNode && objectNode.type === 'identifier' && attrNode && attrNode.type === 'identifier') {
+        // For now, we'll just use the method name (attrNode.text)
+        // In a more complete implementation, we might want to capture the full expression
+        functionName = attrNode.text;
+      }
+    } else if (functionNode.type === 'subscript') {
+      // Handle subscript expressions like obj["method"]()
+      // For now, we'll skip these as they're harder to resolve
+      return;
+    }
+    
+    // Only add relationships for non-empty function names
+    if (functionName) {
+      relationships.push({
+        type: "call",
+        source: currentFunctionContext || module_fqn, // Use function context if available, otherwise module
+        target: functionName
+      });
+    }
+  } catch (error) {
+    // Silently ignore errors in processing individual nodes
+    console.debug(`Error processing call expression node: ${error}`);
   }
 }
